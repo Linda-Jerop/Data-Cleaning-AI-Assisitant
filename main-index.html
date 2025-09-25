@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>data-cleaning-ai</title>
+</head>
+<body>
+    
+</body>
+</html>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-Powered Data Cleaning Assistant</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AI Data Cleaning Assistant</h1>
+            <p>Transform messy data into clean, analysis-ready datasets with intelligent automation</p>
+        </div>
+
+        <div class="upload-section" id="uploadSection">
+            <div class="upload-zone" id="uploadZone">
+                <div class="upload-icon">📊</div>
+                <div class="upload-text">Drop your CSV file here or click to browse</div>
+                <p style="margin: 15px 0; color: #888; font-size: 0.9rem;">
+                    Supports files up to 100MB • UTF-8, Latin1 encoding • .csv format
+                </p>
+                <button class="btn" onclick="document.getElementById('fileInput').click()">
+                    Choose File
+                </button>
+                <input type="file" id="fileInput" class="file-input" accept=".csv" multiple />
+                <div id="uploadProgress" style="display: none; margin-top: 20px;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="uploadProgressFill"></div>
+                    </div>
+                    <p style="text-align: center; margin-top: 10px; color: #666;">Processing your file...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard" id="dashboard">
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Analyzing your data with AI...</p>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+            </div>
+
+            <div id="results" style="display: none;">
+                <div id="fileInfo" class="file-info">
+                    <!-- File information will be displayed here -->
+                </div>
+
+                <div class="stats-grid" id="statsGrid">
+                    <!-- Stats will be populated here -->
+                </div>
+
+                <div class="data-preview">
+                    <h2 class="section-title">
+                        📋 Data Preview
+                        <div class="pagination-controls">
+                            <button class="btn btn-small" id="prevBtn" onclick="changePage(-1)">← Previous</button>
+                            <span class="pagination-info" id="pageInfo">Page 1 of 1</span>
+                            <button class="btn btn-small" id="nextBtn" onclick="changePage(1)">Next →</button>
+                        </div>
+                    </h2>
+                    <div class="table-container">
+                        <table id="previewTable">
+                            <thead id="tableHead"></thead>
+                            <tbody id="tableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="issues-section">
+                    <h2 class="section-title">🔍 Data Quality Issues</h2>
+                    <div id="issuesList">
+                        <!-- Issues will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
