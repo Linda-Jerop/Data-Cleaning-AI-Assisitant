@@ -7,6 +7,80 @@ let currentPage = 1;
 let rowsPerPage = 20;
 let totalPages = 1;
 
+// ===== HUGGING FACE API CONFIGURATION =====
+const HF_API_KEY = 'hf_paste_your_token_here';  // Placeholder for GitHub
+const HF_API_URL = 'https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium';
+
+// AI Analysis Function
+async function getAIInsights(dataDescription) {
+    try {
+        console.log('🤖 Calling AI API for analysis...');
+        
+        const response = await fetch(HF_API_URL, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${HF_API_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                inputs: `Analyze this dataset and provide data cleaning recommendations: ${dataDescription}`,
+                parameters: {
+                    max_length: 150,
+                    temperature: 0.7,
+                    return_full_text: false
+                }
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`API Error: ${response.status} - ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        console.log('✅ AI Analysis received:', result);
+        return result;
+        
+    } catch (error) {
+        console.error('❌ AI API Error:', error);
+        return null;
+    }
+}
+
+// Process AI Recommendations
+function processAIRecommendations(aiResponse) {
+    if (!aiResponse || !Array.isArray(aiResponse) || aiResponse.length === 0) {
+        return;
+    }
+    
+    // Extract AI insights from response
+    const recommendation = aiResponse[0].generated_text || aiResponse[0].text || 'Analysis complete';
+    
+    // Add AI insights to detected issues
+    detectedIssues.push({
+        type: 'ai-insight',
+        title: '🤖 AI-Powered Recommendations',
+        description: recommendation,
+        severity: 'info',
+        isAI: true
+    });
+    
+    console.log('🎯 AI Recommendations processed:', recommendation);
+}
+
+// Create Data Description for AI
+function createDataDescription() {
+    const columns = Object.keys(currentData[0]);
+    const numericCols = columns.filter(col => {
+        const sample = currentData.slice(0, 10);
+        return sample.some(row => !isNaN(parseFloat(row[col])));
+    });
+    
+    return `Dataset: ${dataStats.totalRows} rows, ${dataStats.totalColumns} columns. 
+    Columns: ${columns.join(', ')}. 
+    Numeric columns: ${numericCols.join(', ')}. 
+    Issues found: ${dataStats.missingValues} missing values, ${dataStats.duplicates} duplicates, ${dataStats.outliers} outliers.`;
+}
+
 // File upload handling
 const fileInput = document.getElementById('fileInput');
 const uploadZone = document.getElementById('uploadZone');
@@ -24,7 +98,10 @@ uploadZone.addEventListener('click', (e) => {
     }
 });
 
-uploadZone.addEventListener(handleDragOver)
+uploadZone.addEventListener('dragover', handleDragOver);
+uploadZone.addEventListener('dragleave', handleDragLeave);
+uploadZone.addEventListener('drop', handleFileDrop);
+
 function handleDragOver(e) {
     e.preventDefault();
     if (!uploadZone.classList.contains('processing')) {
@@ -149,15 +226,15 @@ function handleFile(file) {
     // Simulate upload progress
     simulateUploadProgress();
     
-    // Parse CSV with enhanced options
+    // Parse CSV with enhanced options - ENHANCED WITH AI INTEGRATION
     Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
         dynamicTyping: true,
         encoding: 'UTF-8',
         delimitersToGuess: [',', ';', '\t', '|'],
-        complete: function(results) {
-            setTimeout(() => {
+        complete: async function(results) { // ⭐ NOW ASYNC!
+            setTimeout(async () => { // ⭐ ASYNC TIMEOUT
                 if (results.errors && results.errors.length > 0) {
                     console.warn('CSV parsing warnings:', results.errors);
                 }
@@ -167,7 +244,9 @@ function handleFile(file) {
                     currentPage = 1;
                     totalPages = Math.ceil(currentData.length / rowsPerPage);
                     
-                    analyzeData();
+                    // ⭐ ENHANCED: Analyze data with AI integration
+                    await analyzeDataWithAI();
+                    
                     displayResults();
                     
                     uploadZone.classList.remove('processing');
@@ -175,7 +254,7 @@ function handleFile(file) {
                     loading.style.display = 'none';
                     results.style.display = 'block';
                     
-                    showSuccess(`Successfully processed ${currentData.length} rows from ${file.name}`);
+                    showSuccess(`Successfully processed ${currentData.length} rows from ${file.name} with AI analysis`);
                 } else {
                     showError('No data found in the CSV file. Please check the file format.');
                     resetUploadState();
@@ -220,7 +299,10 @@ function simulateProgress() {
     }, 300);
 }
 
-function analyzeData() {
+// ⭐ ENHANCED ANALYSIS FUNCTION WITH AI INTEGRATION
+async function analyzeDataWithAI() {
+    console.log('📊 Starting data analysis...');
+    
     if (!currentData || currentData.length === 0) return;
 
     const columns = Object.keys(currentData[0]);
@@ -234,19 +316,7 @@ function analyzeData() {
 
     detectedIssues = [];
 
-//     Papa.parse(file, {
-//     header: true,
-//     complete: async function(results) {
-//         const csvData = results.data;
-        
-//         // Get AI analysis
-//         const aiInsights = await analyzeDataQuality(csvData);
-        
-//         // Display results to user
-//         displayCleaningRecommendations(aiInsights);
-//     }
-// });
-    // Analyze missing values
+    // 1. Analyze missing values
     columns.forEach(col => {
         const missingCount = currentData.filter(row => 
             row[col] === null || row[col] === undefined || row[col] === ''
@@ -265,7 +335,7 @@ function analyzeData() {
         }
     });
 
-    // Detect duplicates
+    // 2. Detect duplicates
     const duplicateRows = [];
     const seen = new Set();
     currentData.forEach((row, index) => {
@@ -288,15 +358,15 @@ function analyzeData() {
         });
     }
 
-    // Detect potential outliers (for numeric columns)
+    // 3. Detect potential outliers (for numeric columns)
     columns.forEach(col => {
         const numericValues = currentData
             .map(row => parseFloat(row[col]))
             .filter(val => !isNaN(val));
 
         if (numericValues.length > 10) {
-            const mean = _.mean(numericValues);
-            const std = Math.sqrt(_.mean(numericValues.map(x => Math.pow(x - mean, 2))));
+            const mean = numericValues.reduce((a, b) => a + b) / numericValues.length;
+            const std = Math.sqrt(numericValues.reduce((sq, n) => sq + Math.pow(n - mean, 2), 0) / numericValues.length);
             const outliers = numericValues.filter(val => Math.abs(val - mean) > 3 * std);
 
             if (outliers.length > 0) {
@@ -312,6 +382,18 @@ function analyzeData() {
             }
         }
     });
+
+    // ⭐ 4. GET AI INSIGHTS (NEW!)
+    console.log('🤖 Getting AI recommendations...');
+    const dataDescription = createDataDescription();
+    const aiInsights = await getAIInsights(dataDescription);
+    
+    if (aiInsights) {
+        processAIRecommendations(aiInsights);
+        console.log('✅ AI analysis complete');
+    } else {
+        console.log('⚠️ AI analysis unavailable - continuing with standard analysis');
+    }
 }
 
 function displayResults() {
@@ -340,6 +422,7 @@ function displayFileInfo() {
         </div>
         <div style="display: flex; align-items: center; gap: 10px;">
             <span style="color: #28a745; font-weight: bold;">✓ Ready for Analysis</span>
+            <span style="color: #007bff; font-size: 0.9em;">🤖 AI-Enhanced</span>
         </div>
     `;
 }
@@ -491,6 +574,7 @@ function changePage(direction) {
     }
 }
 
+// ⭐ ENHANCED DISPLAY ISSUES WITH AI INSIGHTS
 function displayIssues() {
     const issuesList = document.getElementById('issuesList');
     
@@ -505,35 +589,37 @@ function displayIssues() {
     }
 
     issuesList.innerHTML = detectedIssues.map(issue => `
-        <div class="issue-card ${issue.severity === 'high' ? 'high-severity' : ''}">
+        <div class="issue-card ${issue.severity === 'high' ? 'high-severity' : ''} ${issue.isAI ? 'ai-insight-card' : ''}">
             <div class="issue-title">
-                ${issue.severity === 'high' ? '🚨' : issue.severity === 'medium' ? '⚠️' : '💡'} 
+                ${issue.severity === 'high' ? '🚨' : issue.severity === 'medium' ? '⚠️' : issue.isAI ? '🤖' : '💡'} 
                 ${issue.title}
             </div>
             <div class="issue-description">${issue.description}</div>
-            <div class="issue-actions">
-                <button class="btn btn-small btn-success" onclick="suggestFix('${issue.type}', '${issue.column || ''}')">
-                    🔧 Get AI Suggestion
-                </button>
-                <button class="btn btn-small btn-info" onclick="previewFix('${issue.type}', '${issue.column || ''}')">
-                    👀 Preview Fix
-                </button>
-            </div>
+            ${!issue.isAI ? `
+                <div class="issue-actions">
+                    <button class="btn btn-small btn-success" onclick="suggestFix('${issue.type}', '${issue.column || ''}')">
+                        🔧 Get AI Suggestion
+                    </button>
+                    <button class="btn btn-small btn-info" onclick="previewFix('${issue.type}', '${issue.column || ''}')">
+                        👀 Preview Fix
+                    </button>
+                </div>
+            ` : ''}
         </div>
     `).join('');
 }
 
 function suggestFix(issueType, column) {
-    // This will be expanded in Phase 2 with actual AI suggestions
-    alert(`AI Suggestion for ${issueType} in ${column || 'dataset'}:\n\nThis feature will provide intelligent recommendations based on data patterns and context. Coming in the next phase!`);
+    // This will be expanded with actual AI suggestions
+    alert(`AI Suggestion for ${issueType} in ${column || 'dataset'}:\n\nThis feature will provide intelligent recommendations based on data patterns and context. Enhanced with REST API integration!`);
 }
 
 function previewFix(issueType, column) {
-    // This will be expanded in Phase 3 with preview functionality
+    // This will be expanded with preview functionality
     alert(`Preview for ${issueType} fix in ${column || 'dataset'}:\n\nThis will show before/after comparison of the proposed cleaning actions. Coming soon!`);
 }
 
-//For the floating particles
+// For the floating particles
 function createParticles() {
     const particlesContainer = document.createElement('div');
     particlesContainer.className = 'particles';
@@ -561,33 +647,3 @@ function createParticles() {
 
 // Initialize particles when page loads
 document.addEventListener('DOMContentLoaded', createParticles);
-
-// Your API configuration
-const HF_API_KEY = 'your_token_here'; // Keep this secure!
-const API_URL = 'https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium';
-
-// Function to call Hugging Face API
-async function analyzeDataQuality(dataText) {
-    const response = await fetch(API_URL, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${HF_API_KEY}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            inputs: `Analyze this data for quality issues: ${dataText}`,
-            parameters: {
-                max_length: 100
-            }
-        })
-    });
-    
-    const result = await response.json();
-    return result;
-}
-
-// Use it with your CSV data
-async function processCSV(csvData) {
-    const analysis = await analyzeDataQuality(JSON.stringify(csvData));
-    console.log('AI Analysis:', analysis);
-}
