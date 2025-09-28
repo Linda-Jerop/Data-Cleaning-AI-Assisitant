@@ -8,3 +8,8 @@ Modern glassmorphism ✅
 Smooth micro-interactions ✅
 Professional gradient palette ✅
 Attention to animation details ✅
+
+
+HAS AN API
+IS RESPONSIVE
+IS DEPLOYED

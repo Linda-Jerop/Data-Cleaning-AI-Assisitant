@@ -23,10 +23,8 @@ uploadZone.addEventListener('click', (e) => {
         fileInput.click();
     }
 });
-uploadZone.addEventListener('dragover', handleDragOver);
-uploadZone.addEventListener('dragleave', handleDragLeave);
-uploadZone.addEventListener('drop', handleFileDrop);
 
+uploadZone.addEventListener(handleDragOver)
 function handleDragOver(e) {
     e.preventDefault();
     if (!uploadZone.classList.contains('processing')) {
@@ -236,6 +234,18 @@ function analyzeData() {
 
     detectedIssues = [];
 
+//     Papa.parse(file, {
+//     header: true,
+//     complete: async function(results) {
+//         const csvData = results.data;
+        
+//         // Get AI analysis
+//         const aiInsights = await analyzeDataQuality(csvData);
+        
+//         // Display results to user
+//         displayCleaningRecommendations(aiInsights);
+//     }
+// });
     // Analyze missing values
     columns.forEach(col => {
         const missingCount = currentData.filter(row => 
@@ -551,3 +561,33 @@ function createParticles() {
 
 // Initialize particles when page loads
 document.addEventListener('DOMContentLoaded', createParticles);
+
+// Your API configuration
+const HF_API_KEY = 'your_token_here'; // Keep this secure!
+const API_URL = 'https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium';
+
+// Function to call Hugging Face API
+async function analyzeDataQuality(dataText) {
+    const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${HF_API_KEY}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            inputs: `Analyze this data for quality issues: ${dataText}`,
+            parameters: {
+                max_length: 100
+            }
+        })
+    });
+    
+    const result = await response.json();
+    return result;
+}
+
+// Use it with your CSV data
+async function processCSV(csvData) {
+    const analysis = await analyzeDataQuality(JSON.stringify(csvData));
+    console.log('AI Analysis:', analysis);
+}
