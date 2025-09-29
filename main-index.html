@@ -15,6 +15,7 @@
             <p>Transform messy data into clean, analysis-ready datasets with intelligent automation</p>
         </div>
 
+        <!-- File upload section -->
         <div class="upload-section" id="uploadSection">
             <div class="upload-zone" id="uploadZone">
                 <div class="upload-icon">📊</div>
@@ -35,6 +36,7 @@
             </div>
         </div>
 
+        <!-- Dashboard section -->
         <div class="dashboard" id="dashboard">
             <div class="loading" id="loading">
                 <div class="spinner"></div>
@@ -45,14 +47,10 @@
             </div>
 
             <div id="results" style="display: none;">
-                <div id="fileInfo" class="file-info">
-                    <!-- File information -->
-                </div>
+                <div id="fileInfo" class="file-info"></div>
+                <div class="stats-grid" id="statsGrid"></div>
 
-                <div class="stats-grid" id="statsGrid">
-                    <!-- Statistics -->
-                </div>
-
+                <!-- Data preview -->
                 <div class="data-preview">
                     <h2 class="section-title">
                         📋 Data Preview
@@ -70,16 +68,20 @@
                     </div>
                 </div>
 
+                 <!-- Detected issues in the dataset -->
                 <div class="issues-section">
                     <h2 class="section-title">🔍 Data Quality Issues</h2>
-                    <div id="issuesList">
-                        <!-- Issues will be populated here -->
-                    </div>
+                    <div id="issuesList"></div>
                 </div>
+
+                <!-- AI insights -->
+                <div id="ai-insights" style="display:none;"></div>
+                <!-- AI recommendations will appear here -->
+
             </div>
         </div>
     </div>
 
-    <script src="main-script.js"></script>
+    <script type="module" src="main-script.js"></script>
 </body>
 </html>

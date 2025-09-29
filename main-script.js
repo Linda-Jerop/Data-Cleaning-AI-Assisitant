@@ -1,3 +1,7 @@
+//Imports token from config.js
+import { HF_API_KEY } from './config.js';
+
+// Global variables
 let currentData = null;
 let dataStats = {};
 let detectedIssues = [];
@@ -7,14 +11,32 @@ let currentPage = 1;
 let rowsPerPage = 20;
 let totalPages = 1;
 
-// ===== HUGGING FACE API CONFIGURATION =====
-const HF_API_KEY = 'hf_paste_your_token_here';  // Placeholder for GitHub
-const HF_API_URL = 'https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium';
+// ===== DUAL MODE CONFIGURATION =====
+const IS_LOCAL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+// const HF_API_KEY = IS_LOCAL ? 'hf_your_new_token_here' : 'demo_mode';  // Replace with new token
+const HF_API_URL = 'https://api-inference.huggingface.co/models/facebook/bart-large';
+
+// Mock AI responses for public demo
+const DEMO_AI_RESPONSES = [
+    "This dataset shows good structure but has missing values in the salary column. Consider using median imputation for numerical gaps.",
+    "Detected duplicate entries - recommend deduplication based on customer_id and timestamp combinations.", 
+    "Email format inconsistencies found. Standardize to lowercase and validate format patterns.",
+    "Outlier detection shows extreme values in the amount column. Review transactions over $10,000 for accuracy.",
+    "Data type inconsistencies detected. Convert date strings to proper datetime format for analysis."
+];
 
 // AI Analysis Function
 async function getAIInsights(dataDescription) {
     try {
-        console.log('🤖 Calling AI API for analysis...');
+        if (!IS_LOCAL) {
+            console.log('Demo mode: Using simulated AI response');
+            const randomResponse = DEMO_AI_RESPONSES[Math.floor(Math.random() * DEMO_AI_RESPONSES.length)];
+            return [{
+                generated_text: randomResponse
+            }];
+        }
+
+        console.log('Local mode: Calling real AI API...');
         
         const response = await fetch(HF_API_URL, {
             method: 'POST',
@@ -37,12 +59,16 @@ async function getAIInsights(dataDescription) {
         }
         
         const result = await response.json();
-        console.log('✅ AI Analysis received:', result);
+        console.log('Real AI Analysis received:', result);
         return result;
         
     } catch (error) {
-        console.error('❌ AI API Error:', error);
-        return null;
+        console.error('AI API Error:', error);
+        
+        const fallbackResponse = "AI analysis temporarily unavailable. Based on common patterns, consider checking for missing values, duplicates, and data type consistency.";
+        return [{
+            generated_text: fallbackResponse
+        }];
     }
 }
 
@@ -52,10 +78,8 @@ function processAIRecommendations(aiResponse) {
         return;
     }
     
-    // Extract AI insights from response
     const recommendation = aiResponse[0].generated_text || aiResponse[0].text || 'Analysis complete';
     
-    // Add AI insights to detected issues
     detectedIssues.push({
         type: 'ai-insight',
         title: '🤖 AI-Powered Recommendations',
@@ -63,6 +87,25 @@ function processAIRecommendations(aiResponse) {
         severity: 'info',
         isAI: true
     });
+
+    // ✅ Write recommendation into the #ai-insights div
+    const aiInsightsDiv = document.getElementById('ai-insights');
+    console.log("DEBUG: ai-insights element = ", document.getElementById('ai-insights'));
+if (aiInsightsDiv) {
+    aiInsightsDiv.style.display = 'block';
+} else {
+    console.warn("⚠️ ai-insights div not found at this point");
+}
+
+    if (aiInsightsDiv) {
+        aiInsightsDiv.style.display = 'block';
+        aiInsightsDiv.innerHTML = `
+            <div class="issue-card ai-insight-card">
+                <div class="issue-title">🤖 AI Recommendations</div>
+                <div class="issue-description">${recommendation}</div>
+            </div>
+        `;
+    }
     
     console.log('🎯 AI Recommendations processed:', recommendation);
 }
@@ -141,17 +184,14 @@ function formatFileSize(bytes) {
 function validateFile(file) {
     const errors = [];
     
-    // Check file type
     if (!file.name.toLowerCase().endsWith('.csv') && file.type !== 'text/csv') {
         errors.push('Please upload a CSV file (.csv extension)');
     }
     
-    // Check file size (100MB limit)
     if (file.size > 100 * 1024 * 1024) {
         errors.push('File size must be less than 100MB');
     }
     
-    // Check if file is empty
     if (file.size === 0) {
         errors.push('File appears to be empty');
     }
@@ -170,11 +210,9 @@ function showError(message) {
         </div>
     `;
     
-    // Insert after upload section
     const uploadSection = document.getElementById('uploadSection');
     uploadSection.insertAdjacentElement('afterend', errorDiv);
     
-    // Remove after 5 seconds
     setTimeout(() => {
         errorDiv.remove();
     }, 5000);
@@ -191,17 +229,17 @@ function showSuccess(message) {
         </div>
     `;
     
-    // Insert after upload section
     const uploadSection = document.getElementById('uploadSection');
     uploadSection.insertAdjacentElement('afterend', successDiv);
     
-    // Remove after 3 seconds
     setTimeout(() => {
         successDiv.remove();
     }, 3000);
 }
 
 function handleFile(file) {
+    console.log("DEBUG: handleFile called with:", file.name);
+    
     // Remove any existing error messages
     document.querySelectorAll('.error-message, .success-message').forEach(el => el.remove());
     
@@ -226,15 +264,15 @@ function handleFile(file) {
     // Simulate upload progress
     simulateUploadProgress();
     
-    // Parse CSV with enhanced options - ENHANCED WITH AI INTEGRATION
+    // Parse CSV
     Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
         dynamicTyping: true,
         encoding: 'UTF-8',
         delimitersToGuess: [',', ';', '\t', '|'],
-        complete: async function(results) { // ⭐ NOW ASYNC!
-            setTimeout(async () => { // ⭐ ASYNC TIMEOUT
+        complete: async function(results) {
+            setTimeout(async () => {
                 if (results.errors && results.errors.length > 0) {
                     console.warn('CSV parsing warnings:', results.errors);
                 }
@@ -244,9 +282,7 @@ function handleFile(file) {
                     currentPage = 1;
                     totalPages = Math.ceil(currentData.length / rowsPerPage);
                     
-                    // ⭐ ENHANCED: Analyze data with AI integration
                     await analyzeDataWithAI();
-                    
                     displayResults();
                     
                     uploadZone.classList.remove('processing');
@@ -287,19 +323,6 @@ function simulateUploadProgress() {
     }, 200);
 }
 
-function simulateProgress() {
-    let progress = 0;
-    const interval = setInterval(() => {
-        progress += Math.random() * 30;
-        if (progress >= 100) {
-            progress = 100;
-            clearInterval(interval);
-        }
-        progressFill.style.width = progress + '%';
-    }, 300);
-}
-
-// ⭐ ENHANCED ANALYSIS FUNCTION WITH AI INTEGRATION
 async function analyzeDataWithAI() {
     console.log('📊 Starting data analysis...');
     
@@ -358,7 +381,7 @@ async function analyzeDataWithAI() {
         });
     }
 
-    // 3. Detect potential outliers (for numeric columns)
+    // 3. Detect potential outliers
     columns.forEach(col => {
         const numericValues = currentData
             .map(row => parseFloat(row[col]))
@@ -383,7 +406,7 @@ async function analyzeDataWithAI() {
         }
     });
 
-    // ⭐ 4. GET AI INSIGHTS (NEW!)
+    // 4. GET AI INSIGHTS
     console.log('🤖 Getting AI recommendations...');
     const dataDescription = createDataDescription();
     const aiInsights = await getAIInsights(dataDescription);
@@ -405,7 +428,7 @@ function displayResults() {
 
 function displayFileInfo() {
     const fileInfo = document.getElementById('fileInfo');
-    const processingTime = Math.random() * 2 + 0.5; // Simulate processing time
+    const processingTime = Math.random() * 2 + 0.5;
     
     fileInfo.innerHTML = `
         <div class="file-details">
@@ -431,7 +454,6 @@ function displayStats() {
     const statsGrid = document.getElementById('statsGrid');
     const columns = Object.keys(currentData[0]);
     
-    // Enhanced statistics
     const numericColumns = columns.filter(col => {
         const sample = currentData.slice(0, 100);
         const numericCount = sample.filter(row => !isNaN(parseFloat(row[col]))).length;
@@ -475,27 +497,22 @@ function displayPreview() {
     const tableBody = document.getElementById('tableBody');
     const columns = Object.keys(currentData[0]);
     
-    // Calculate pagination
     const startIndex = (currentPage - 1) * rowsPerPage;
     const endIndex = Math.min(startIndex + rowsPerPage, currentData.length);
     const pageData = currentData.slice(startIndex, endIndex);
 
-    // Update pagination info
     document.getElementById('pageInfo').textContent = 
         `Showing ${startIndex + 1}-${endIndex} of ${currentData.length.toLocaleString()} rows`;
     
-    // Enable/disable pagination buttons
     document.getElementById('prevBtn').disabled = currentPage <= 1;
     document.getElementById('nextBtn').disabled = currentPage >= totalPages;
 
-    // Create enhanced header with data type indicators
     tableHead.innerHTML = `<tr>${columns.map(col => {
         const dataType = detectColumnType(col);
         const typeIcon = getTypeIcon(dataType);
         return `<th>${typeIcon} ${col}<br><small style="opacity:0.7">${dataType}</small></th>`;
     }).join('')}</tr>`;
 
-    // Create body with enhanced formatting
     tableBody.innerHTML = pageData.map((row, rowIndex) => 
         `<tr>${columns.map(col => {
             const value = row[col];
@@ -527,13 +544,11 @@ function detectColumnType(columnName) {
     
     if (nonNullSample.length === 0) return 'empty';
     
-    // Check for numbers
     const numberCount = nonNullSample.filter(val => !isNaN(parseFloat(val))).length;
     if (numberCount > nonNullSample.length * 0.8) {
         return numberCount === nonNullSample.length ? 'number' : 'mostly-number';
     }
     
-    // Check for dates
     const dateCount = nonNullSample.filter(val => {
         const date = new Date(val);
         return !isNaN(date.getTime()) && val.toString().match(/\d{1,4}[-\/]\d{1,2}[-\/]\d{1,4}/);
@@ -542,7 +557,6 @@ function detectColumnType(columnName) {
         return 'date';
     }
     
-    // Check for emails
     const emailCount = nonNullSample.filter(val => 
         typeof val === 'string' && val.includes('@') && val.includes('.')
     ).length;
@@ -574,7 +588,6 @@ function changePage(direction) {
     }
 }
 
-// ⭐ ENHANCED DISPLAY ISSUES WITH AI INSIGHTS
 function displayIssues() {
     const issuesList = document.getElementById('issuesList');
     
@@ -610,16 +623,13 @@ function displayIssues() {
 }
 
 function suggestFix(issueType, column) {
-    // This will be expanded with actual AI suggestions
     alert(`AI Suggestion for ${issueType} in ${column || 'dataset'}:\n\nThis feature will provide intelligent recommendations based on data patterns and context. Enhanced with REST API integration!`);
 }
 
 function previewFix(issueType, column) {
-    // This will be expanded with preview functionality
     alert(`Preview for ${issueType} fix in ${column || 'dataset'}:\n\nThis will show before/after comparison of the proposed cleaning actions. Coming soon!`);
 }
 
-// For the floating particles
 function createParticles() {
     const particlesContainer = document.createElement('div');
     particlesContainer.className = 'particles';
@@ -629,7 +639,6 @@ function createParticles() {
         const particle = document.createElement('div');
         particle.className = 'particle';
         
-        // Random size and position
         const size = Math.random() * 6 + 2;
         particle.style.width = size + 'px';
         particle.style.height = size + 'px';
@@ -638,12 +647,10 @@ function createParticles() {
         
         particlesContainer.appendChild(particle);
         
-        // Remove after animation
         setTimeout(() => {
             particle.remove();
         }, 10000);
     }, 300);
 }
 
-// Initialize particles when page loads
 document.addEventListener('DOMContentLoaded', createParticles);
