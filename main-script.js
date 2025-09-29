@@ -13,7 +13,7 @@ let totalPages = 1;
 
 // ===== DUAL MODE CONFIGURATION =====
 const IS_LOCAL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-// const HF_API_KEY = IS_LOCAL ? 'hf_your_new_token_here' : 'demo_mode';  // Replace with new token
+// const HF_API_KEY = IS_LOCAL ? 'hf_MY_new_token_here' : 'demo_mode';  // Replace with new token
 const HF_API_URL = 'https://api-inference.huggingface.co/models/facebook/bart-large';
 
 // Mock AI responses for public demo
@@ -25,7 +25,7 @@ const DEMO_AI_RESPONSES = [
     "Data type inconsistencies detected. Convert date strings to proper datetime format for analysis."
 ];
 
-// AI Analysis Function
+// AI Analysis Function (sends the dataset description to Hugging Face and retrieves recommendations)
 async function getAIInsights(dataDescription) {
     try {
         if (!IS_LOCAL) {
@@ -110,7 +110,7 @@ if (aiInsightsDiv) {
     console.log('🎯 AI Recommendations processed:', recommendation);
 }
 
-// Create Data Description for AI
+// Create Data Description for AI(creates a structured summary of the uploaded CSV)
 function createDataDescription() {
     const columns = Object.keys(currentData[0]);
     const numericCols = columns.filter(col => {
@@ -406,7 +406,7 @@ async function analyzeDataWithAI() {
         }
     });
 
-    // 4. GET AI INSIGHTS
+    // GET AI INSIGHTS
     console.log('🤖 Getting AI recommendations...');
     const dataDescription = createDataDescription();
     const aiInsights = await getAIInsights(dataDescription);
